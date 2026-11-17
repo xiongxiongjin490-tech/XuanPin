@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>供应商报价整理工具</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23157f78'/%3E%3Cpath d='M7 8h10M7 12h10M7 16h6' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --primary: hsl(177 55% 30%);
+      --primary-soft: hsl(177 55% 95%);
+      --bg: hsl(220 20% 97%);
+      --border: hsl(220 16% 89%);
+      --text: hsl(222 24% 16%);
+      --muted: hsl(220 10% 46%);
+      --amber: hsl(38 92% 40%);
+      --danger: hsl(2 70% 50%);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(255,255,255,.88);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(6px);
+    }
+    .header-inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+    .logo { width: 34px; height: 34px; border-radius: 9px; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+    .logo svg { width: 19px; height: 19px; }
+    .title { font-size: 15px; font-weight: 600; }
+    .subtitle { font-size: 12px; color: var(--muted); }
+    main { max-width: 1120px; margin: 0 auto; padding: 20px 16px 40px; display: flex; flex-direction: column; gap: 18px; }
+    .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; }
+    .dropzone {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      border: 1.5px dashed var(--border); border-radius: 14px;
+      padding: 36px 24px; text-align: center;
+    }
+    .dropzone.dragging { border-color: var(--primary); background: var(--primary-soft); }
+    .drop-icon { width: 54px; height: 54px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+    .drop-icon svg { width: 26px; height: 26px; }
+    .dropzone h2 { margin: 0; font-size: 17px; }
+    .dropzone p { margin: 0; max-width: 520px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid transparent; border-radius: 9px;
+      padding: 8px 14px; font-size: 14px; cursor: pointer; background: var(--primary); color: #fff;
+    }
+    .btn.secondary { background: #fff; color: var(--text); border-color: var(--border); }
+    .btn.ghost { background: transparent; color: var(--muted); }
+    .btn:hover { filter: brightness(.96); }
+    .btn svg { width: 15px; height: 15px; }
+    .file-name { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .error { color: var(--danger); font-size: 13px; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px; }
+    .field { display: flex; align-items: center; gap: 8px; }
+    .field label { font-size: 13px; color: var(--muted); }
+    select, input[type="number"], input[type="text"] {
+      height: 36px; border: 1px solid var(--border); border-radius: 8px;
+      padding: 0 10px; font-size: 14px; background: #fff; color: var(--text);
+    }
+    input[type="text"] { width: 220px; }
+    .toolbar .spacer { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+    .stats { display: flex; flex-wrap: wrap; gap: 36px; padding: 0 4px; }
+    .stat .num { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stat .lbl { font-size: 12px; color: var(--muted); }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+    .badge { font-size: 12px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; }
+    .table-card { overflow: hidden; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+    col.c-name { width: 25%; } col.c-brand { width: 10%; } col.c-spec { width: 13%; }
+    col.c-pack { width: 7%; } col.c-base { width: 9%; } col.c-meta { width: 12%; }
+    col.c-after { width: 9%; } col.c-bar { width: 12%; } col.c-link { width: 13%; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    th { background: var(--bg); color: var(--muted); font-weight: 500; text-align: left; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.after { color: var(--amber); font-weight: 600; }
+    td.muted { color: var(--muted); }
+    td a { color: var(--primary); text-decoration: none; }
+    td a:hover { text-decoration: underline; }
+    .empty-row td { text-align: center; color: var(--muted); padding: 36px 0; }
+    .footnote { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      </span>
+      <div>
+        <div class="title">供应商报价整理工具</div>
+        <div class="subtitle">上传报价表 · 自动识别商品与价格 · 折扣核算 · 导出汇总表</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="card dropzone" id="dropzone">
+      <span class="drop-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16h6v-6h-6"/><path d="m8 8-4 4 4 4"/><path d="M20 10H4"/></svg>
+      </span>
+      <h2>上传供应商报价表格</h2>
+      <p>支持 xlsx / xls / csv，自动遍历全部工作表，识别商品名称、品牌、规格、包装、条码与多列价格；不同表格的行列数和表头写法不一致也可适配。全部解析在浏览器本地完成，不上传任何数据。</p>
+      <button type="button" class="btn" id="btn-pick">选择文件</button>
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" class="hidden" />
+      <div class="file-name" id="file-name"></div>
+      <div class="error" id="error"></div>
+    </div>
+
+    <div class="card toolbar hidden" id="toolbar">
+      <div class="field">
+        <label for="price-select">基准价列</label>
+        <select id="price-select"></select>
+      </div>
+      <div class="field">
+        <label for="discount-input">折扣</label>
+        <input type="number" id="discount-input" min="0" max="10" step="0.1" value="10" style="width:96px" />
+        <span class="field" style="color:var(--muted);font-size:13px">折（10 = 原价）</span>
+      </div>
+      <div class="field">
+        <input type="text" id="search-input" placeholder="搜索名称 / 品牌 / 规格 / 条码" />
+      </div>
+      <div class="spacer">
+        <button type="button" class="btn secondary" id="btn-csv">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+          导出 CSV
+        </button>
+        <button type="button" class="btn secondary" id="btn-xlsx">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          导出 XLSX
+        </button>
+        <button type="button" class="btn ghost" id="btn-reset">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          重新上传
+        </button>
+      </div>
+    </div>
+
+    <div id="result-area" class="hidden">
+      <div class="stats">
+        <div class="stat"><div class="num" id="stat-total">0</div><div class="lbl">商品条数</div></div>
+        <div class="stat"><div class="num" id="stat-price">0</div><div class="lbl">含基准价条数</div></div>
+        <div class="stat"><div class="num" id="stat-sheets">0</div><div class="lbl">工作表数</div></div>
+      </div>
+      <div class="badges" id="badges" style="margin-top:14px"></div>
+      <div class="card table-card" style="margin-top:14px">
+        <div class="table-scroll">
+          <table>
+            <colgroup>
+              <col class="c-brand" /><col class="c-name" /><col class="c-spec" /><col class="c-pack" />
+              <col class="c-base" /><col class="c-meta" /><col class="c-after" /><col class="c-bar" /><col class="c-link" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>品牌</th><th>商品名称</th><th>规格</th><th>包装</th>
+                <th class="num">基准价</th><th>价格口径</th><th class="num">折后价</th><th>条码</th><th>链接</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="footnote" style="margin-top:12px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+        仅在浏览器本地解析与计算，不会上传任何数据；导出文件包含当前筛选后的全部记录。
+      </p>
+    </div>
+  </main>
+
+  <script src="./xlsx.mini.min.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ===== 状态 =====
+    var state = { result: null, priceKey: '', discount: '10', query: '', fileName: '' };
+
+    // ===== 单元格清洗与价格抽取 =====
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function normalizeHeader(v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); }
+    function cleanText(v) {
+      if (v == null) return '';
+      if (typeof v === 'number') return String(v);
+      var s = String(v).trim();
+      if (s.charAt(0) === '=') return ''; // WPS 内嵌图片公式 / 纯公式
+      return s;
+    }
+    function cleanBarcode(v) { var s = cleanText(v); return s ? s.replace(/\.0$/, '') : ''; }
+    function normalizePrice(v) {
+      if (v == null || v === '') return null;
+      if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+      var s = String(v).replace(/[¥￥,，\s]/g, '');
+      if (!s) return null;
+      var m = s.match(/-?\d+(?:\.\d+)?/);
+      if (!m) return null;
+      var n = Number(m[0]);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    }
+
+    // ===== 表头关键词规则 =====
+    var NAME_RE = /商品名称|产品名称|标准名称|品名/;
+    var BRAND_RE = /品牌/;
+    var SPEC_MAIN_RE = /规格|净含量|组合规格/;
+    var SPEC_FALLBACK_RE = /型号/;
+    var PACK_RE = /包装/;
+    var BARCODE_RE = /69码|条码|条形码/;
+    var URL_RE = /链接|网址/;
+    var PRICE_RULES = [
+      { re: /集采成本|集采价|集采含税|集采/, rank: 1, label: '集采价' },
+      { re: /顺丰代发/, rank: 2, label: '顺丰代发价' },
+      { re: /活动价|控价|最低|官方价格/, rank: 3, label: '控价/活动价' },
+      { re: /一件代发|代发价|代发价格|单价|代发/, rank: 4, label: '代发价' },
+      { re: /市场价|零售价|售价|京东价格/, rank: 5, label: '市场/零售价' }
+    ];
+    function priceRank(header) {
+      if (/规格|型号|净含量|包装|条码|链接|网址|品牌|名称|品名/.test(header)) return null;
+      for (var i = 0; i < PRICE_RULES.length; i++) {
+        if (PRICE_RULES[i].re.test(header)) return { rank: PRICE_RULES[i].rank, label: PRICE_RULES[i].label };
+      }
+      return null;
+    }
+
+    function scoreRow(cells) {
+      var score = 0;
+      for (var i = 0; i < cells.length; i++) {
+        var h = normalizeHeader(cells[i]);
+        if (!h) continue;
+        if (NAME_RE.test(h)) score += 2;
+        if (BRAND_RE.test(h)) score += 1;
+        if (SPEC_MAIN_RE.test(h) || SPEC_FALLBACK_RE.test(h)) score += 1;
+        if (BARCODE_RE.test(h)) score += 1;
+        if (URL_RE.test(h)) score += 1;
+        if (priceRank(h)) score += 1;
+      }
+      return score;
+    }
+    function detectHeaderRow(rows) {
+      var bestIdx = -1, bestScore = 0, limit = Math.min(rows.length, 10);
+      for (var i = 0; i < limit; i++) {
+        var s = scoreRow(rows[i] || []);
+        if (s > bestScore) { bestScore = s; bestIdx = i; }
+      }
+      return bestScore >= 1 ? bestIdx : -1;
+    }
+
+    function mapColumns(header) {
+      var map = { name: -1, brand: -1, spec: -1, pack: -1, barcode: -1, url: -1, prices: [] };
+      header.forEach(function (cell, idx) {
+        var h = normalizeHeader(cell);
+        if (!h) return;
+        if (map.name === -1 && NAME_RE.test(h)) map.name = idx;
+        else if (map.brand === -1 && BRAND_RE.test(h)) map.brand = idx;
+        else if (map.pack === -1 && PACK_RE.test(h)) map.pack = idx;
+        else if (map.barcode === -1 && BARCODE_RE.test(h)) map.barcode = idx;
+        else if (map.url === -1 && URL_RE.test(h)) map.url = idx;
+        else {
+          var pr = priceRank(h);
+          if (pr) map.prices.push({ idx: idx, key: 'col-' + idx, label: String(cell).replace(/\s+/g, ''), rank: pr.rank });
+        }
+      });
+      header.forEach(function (cell, idx) {
+        var h = normalizeHeader(cell);
+        if (idx === map.name || idx === map.brand) return;
+        if (map.spec === -1 && SPEC_MAIN_RE.test(h)) map.spec = idx;
+      });
+      header.forEach(function (cell, idx) {
+        var h = normalizeHeader(cell);
+        if (idx === map.name || idx === map.brand) return;
+        if (map.spec === -1 && SPEC_FALLBACK_RE.test(h)) map.spec = idx;
+      });
+      map.prices.sort(function (a, b) { return a.rank - b.rank || a.idx - b.idx; });
+      return map;
+    }
+
+    function parseSheet(sheetName, rows) {
+      var headerIdx = detectHeaderRow(rows);
+      var products = [], matched = [], priceCols = [];
+      if (headerIdx === -1) return { products: products, summary: { sheet: sheetName, count: 0, matched: [] }, priceCols: priceCols };
+
+      var map = mapColumns(rows[headerIdx] || []);
+      if (map.name !== -1) matched.push('名称:' + cleanText(rows[headerIdx][map.name]));
+      if (map.brand !== -1) matched.push('品牌:' + cleanText(rows[headerIdx][map.brand]));
+      if (map.spec !== -1) matched.push('规格:' + cleanText(rows[headerIdx][map.spec]));
+      if (map.barcode !== -1) matched.push('条码:' + cleanText(rows[headerIdx][map.barcode]));
+      map.prices.forEach(function (p) {
+        matched.push('价格:' + p.label);
+        priceCols.push({ key: sheetName + '#' + p.key, label: sheetName + ' · ' + p.label, rank: p.rank });
+      });
+
+      var lastBrand = '', lastName = '', lastBarcode = '';
+      for (var i = headerIdx + 1; i < rows.length; i++) {
+        var row = rows[i] || [];
+        function pick(idx) { return idx >= 0 ? cleanText(row[idx]) : ''; }
+        var name = pick(map.name), brand = pick(map.brand);
+        var spec = pick(map.spec), pack = pick(map.pack), url = pick(map.url);
+        var barcode = map.barcode >= 0 ? cleanBarcode(row[map.barcode]) : '';
+
+        if (!name) name = lastName; else lastName = name;
+        if (!brand) brand = lastBrand; else lastBrand = brand;
+        if (!barcode) barcode = lastBarcode; else lastBarcode = barcode;
+        if (!name && !spec) continue;
+
+        var prices = {};
+        map.prices.forEach(function (p) { prices[sheetName + '#' + p.key] = normalizePrice(row[p.idx]); });
+        products.push({
+          id: sheetName + '-' + i, sheet: sheetName, brand: brand, name: name,
+          spec: spec, pack: pack, barcode: barcode, url: url, prices: prices
+        });
+      }
+      return { products: products, summary: { sheet: sheetName, count: products.length, matched: matched }, priceCols: priceCols };
+    }
+
+    function parseWorkbook(wb) {
+      var products = [], sheets = [], priceColMap = {};
+      wb.SheetNames.forEach(function (name) {
+        var ws = wb.Sheets[name];
+        var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+        var r = parseSheet(name, rows);
+        products = products.concat(r.products);
+        sheets.push(r.summary);
+        r.priceCols.forEach(function (c) { if (!priceColMap[c.key]) priceColMap[c.key] = c; });
+      });
+      var priceColumns = Object.keys(priceColMap).map(function (k) { return priceColMap[k]; })
+        .sort(function (a, b) { return a.rank - b.rank || a.key.localeCompare(b.key); });
+      return { products: products, priceColumns: priceColumns, sheets: sheets };
+    }
+
+    // ===== 折扣与筛选 =====
+    function discountOf(base, tenths) {
+      if (base == null) return null;
+      var after = base * (tenths / 10);
+      return Math.round(after * 100) / 100;
+    }
+    function discountNum() {
+      var n = parseFloat(state.discount);
+      if (isNaN(n)) return 10;
+      return Math.min(10, Math.max(0, n));
+    }
+    function selectedColumn() {
+      if (!state.result) return null;
+      for (var i = 0; i < state.result.priceColumns.length; i++) {
+        if (state.result.priceColumns[i].key === state.priceKey) return state.result.priceColumns[i];
+      }
+      return null;
+    }
+    function filtered() {
+      if (!state.result) return [];
+      var q = state.query.trim().toLowerCase();
+      if (!q) return state.result.products;
+      return state.result.products.filter(function (p) {
+        return [p.name, p.brand, p.spec, p.barcode, p.sheet].join(' ').toLowerCase().indexOf(q) >= 0;
+      });
+    }
+    function formatPrice(n) { return n == null ? '—' : n.toFixed(2); }
+    function stamp() {
+      var d = new Date();
+      var mm = String(d.getMonth() + 1).padStart(2, '0');
+      var dd = String(d.getDate()).padStart(2, '0');
+      return d.getFullYear() + '-' + mm + '-' + dd;
+    }
+
+    // ===== DOM 引用 =====
+    var $ = function (id) { return document.getElementById(id); };
+    var elDropzone = $('dropzone'), elFile = $('file-input'), elFileName = $('file-name'), elError = $('error');
+    var elToolbar = $('toolbar'), elResult = $('result-area'), elSelect = $('price-select');
+    var elDiscount = $('discount-input'), elSearch = $('search-input'), elBody = $('table-body');
+
+    function setError(msg) { elError.textContent = msg || ''; }
+
+    // ===== 渲染 =====
+    function renderSelect() {
+      elSelect.innerHTML = '';
+      state.result.priceColumns.forEach(function (c) {
+        var opt = document.createElement('option');
+        opt.value = c.key; opt.textContent = c.label;
+        elSelect.appendChild(opt);
+      });
+      elSelect.value = state.priceKey;
+    }
+    function renderStats() {
+      var withPrice = 0;
+      state.result.products.forEach(function (p) { if (p.prices[state.priceKey] != null) withPrice++; });
+      var sheetCount = state.result.sheets.filter(function (s) { return s.count > 0; }).length;
+      $('stat-total').textContent = state.result.products.length;
+      $('stat-price').textContent = withPrice;
+      $('stat-sheets').textContent = sheetCount;
+    }
+    function renderBadges() {
+      var box = $('badges'); box.innerHTML = '';
+      state.result.sheets.filter(function (s) { return s.count > 0; }).forEach(function (s) {
+        var b = document.createElement('span');
+        b.className = 'badge'; b.textContent = s.sheet + ' · ' + s.count + ' 条';
+        box.appendChild(b);
+      });
+    }
+    function renderTable() {
+      var list = filtered();
+      var pc = selectedColumn();
+      var label = pc ? pc.label : '';
+      var d = discountNum();
+      elBody.innerHTML = '';
+      if (list.length === 0) {
+        var tr0 = document.createElement('tr'); tr0.className = 'empty-row';
+        tr0.innerHTML = '<td colspan="9">没有匹配的商品记录</td>';
+        elBody.appendChild(tr0); return;
+      }
+      var frag = document.createDocumentFragment();
+      list.forEach(function (p) {
+        var base = p.prices[state.priceKey] != null ? p.prices[state.priceKey] : null;
+        var after = discountOf(base, d);
+        var tr = document.createElement('tr');
+        var linkCell = p.url.indexOf('http') === 0
+          ? '<a href="' + esc(p.url) + '" target="_blank" rel="noreferrer">打开</a>' : '—';
+        tr.innerHTML =
+          '<td>' + esc(p.brand || '—') + '</td>' +
+          '<td>' + esc(p.name || '—') + '</td>' +
+          '<td>' + esc(p.spec || '—') + '</td>' +
+          '<td>' + esc(p.pack || '—') + '</td>' +
+          '<td class="num">' + formatPrice(base) + '</td>' +
+          '<td class="muted">' + esc(label || '—') + '</td>' +
+          '<td class="num after">' + formatPrice(after) + '</td>' +
+          '<td>' + esc(p.barcode || '—') + '</td>' +
+          '<td>' + linkCell + '</td>';
+        frag.appendChild(tr);
+      });
+      elBody.appendChild(frag);
+    }
+    function renderAll() {
+      var has = !!state.result;
+      elToolbar.classList.toggle('hidden', !has);
+      elResult.classList.toggle('hidden', !has);
+      elFileName.textContent = state.fileName ? '当前文件：' + state.fileName : '';
+      if (!has) { elBody.innerHTML = ''; return; }
+      renderSelect(); renderStats(); renderBadges(); renderTable();
+    }
+
+    // ===== 导出 =====
+    function records() {
+      var pc = selectedColumn(), label = pc ? pc.label : '', d = discountNum();
+      return filtered().map(function (p) {
+        var base = p.prices[state.priceKey] != null ? p.prices[state.priceKey] : null;
+        var after = discountOf(base, d);
+        return {
+          '来源工作表': p.sheet, '品牌': p.brand, '商品名称': p.name, '规格': p.spec,
+          '包装': p.pack, '基准价': base == null ? '' : base, '价格口径': label,
+          '折后价': after == null ? '' : after, '条码': p.barcode, '链接': p.url
+        };
+      });
+    }
+    function downloadBlob(blob, filename) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+    function exportCSV() {
+      if (!state.result) { alert('请先上传表格'); return; }
+      var recs = records();
+      var headers = ['来源工作表', '品牌', '商品名称', '规格', '包装', '基准价', '价格口径', '折后价', '条码', '链接'];
+      var lines = recs.map(function (r) {
+        return headers.map(function (h) {
+          return '"' + String(r[h] == null ? '' : r[h]).replace(/"/g, '""') + '"';
+        }).join(',');
+      });
+      var csv = '\uFEFF' + headers.join(',') + '\r\n' + lines.join('\r\n');
+      downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), '报价整理_' + stamp() + '.csv');
+    }
+    function exportXLSX() {
+      if (!state.result) { alert('请先上传表格'); return; }
+      var recs = records();
+      var ws = XLSX.utils.json_to_sheet(recs);
+      ws['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 32 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 28 }];
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '报价整理');
+      XLSX.writeFile(wb, '报价整理_' + stamp() + '.xlsx');
+    }
+
+    // ===== 文件解析 =====
+    function handleFile(file) {
+      setError('');
+      if (typeof XLSX === 'undefined') {
+        setError('表格解析库未加载成功：请确认 HTML 文件完整，或改用最新版本重新保存。');
+        return;
+      }
+      file.arrayBuffer().then(function (buf) {
+        try {
+          var wb = XLSX.read(buf, { type: 'array', cellDates: false });
+          var res = parseWorkbook(wb);
+          state.result = res; state.fileName = file.name;
+          state.priceKey = res.priceColumns.length ? res.priceColumns[0].key : '';
+          state.query = ''; elSearch.value = '';
+          renderAll();
+        } catch (err) {
+          console.error(err);
+          state.result = null; renderAll();
+          setError('表格解析失败，请确认文件是有效的 xlsx / xls / csv。');
+        }
+      }).catch(function () { setError('文件读取失败，请重新选择。'); });
+    }
+
+    // ===== 事件绑定 =====
+    $('btn-pick').addEventListener('click', function () { elFile.click(); });
+    elFile.addEventListener('change', function () {
+      var file = elFile.files && elFile.files[0];
+      if (file) handleFile(file);
+      elFile.value = '';
+    });
+    elDropzone.addEventListener('dragover', function (e) { e.preventDefault(); elDropzone.classList.add('dragging'); });
+    elDropzone.addEventListener('dragleave', function () { elDropzone.classList.remove('dragging'); });
+    elDropzone.addEventListener('drop', function (e) {
+      e.preventDefault(); elDropzone.classList.remove('dragging');
+      var file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+    elSelect.addEventListener('change', function () { state.priceKey = elSelect.value; renderStats(); renderTable(); });
+    elDiscount.addEventListener('input', function () { state.discount = elDiscount.value; renderTable(); });
+    elSearch.addEventListener('input', function () { state.query = elSearch.value; renderTable(); });
+    $('btn-csv').addEventListener('click', exportCSV);
+    $('btn-xlsx').addEventListener('click', exportXLSX);
+    $('btn-reset').addEventListener('click', function () {
+      state.result = null; state.fileName = ''; state.priceKey = ''; state.query = '';
+      elSearch.value = ''; elDiscount.value = '10'; state.discount = '10';
+      setError(''); renderAll();
+    });
+
+    renderAll();
+  })();
+  </script>
+</body>
+</html>
